@@ -3,7 +3,7 @@
 # Requires host with ROCm HIP SDK 7.1.1 for Windows (Ryzen 9 MAX AI 395)
 # PyTorch: 2.9.0+rocmsdk20251116
 # NOTE: Despite being marketed as RDNA 2.0, RX 7600 XT uses gfx1102 (Navi 33)
-FROM rocm/pytorch:rocm6.2.4_ubuntu22.04_py3.10_pytorch_release_2.5.0
+FROM rocm/pytorch:latest
 
 # Set ROCm architecture for RX 7600 XT (gfx1102, NOT gfx1031!)
 ENV PYTORCH_ROCM_ARCH="gfx1102"

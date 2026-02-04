@@ -2,7 +2,7 @@
 # Optimized for RDNA 3.0 architecture (RX 7900 XTX - gfx1100)
 # Requires host with ROCm HIP SDK 7.1.1 for Windows (Ryzen 9 MAX AI 395)
 # PyTorch: 2.9.0+rocmsdk20251116
-FROM rocm/pytorch:rocm6.2.4_ubuntu22.04_py3.10_pytorch_release_2.5.0
+FROM rocm/pytorch:latest
 
 # Set ROCm architecture for RDNA 3.0 (RX 7900 XTX)
 ENV PYTORCH_ROCM_ARCH="gfx1100"
