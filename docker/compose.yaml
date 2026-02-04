@@ -1,87 +1,247 @@
+# MinerU Docker Compose - Multi-GPU AMD Configuration
+# Supports: RX 7900 XTX (RDNA 3.0), RX 7600 XT (RDNA 2.0), Ryzen NPU M890
+#
+# Usage Examples:
+#   RX 7900 XTX:  docker compose --profile rdna3-7900xtx up -d
+#   RX 7600 XT:   docker compose --profile rdna2-7600xt up -d
+#   Ryzen NPU:    docker compose --profile npu-m890 up -d
+#
+# Port mappings (anti-conflict):
+#   OpenAI Server: 31001, API: 31002, Gradio: 31003
+
 services:
-  mineru-openai-server:
-    image: mineru:latest
-    container_name: mineru-openai-server
+services:
+  # ============================================================================
+  # RX 7900 XTX (RDNA 3.0 / gfx1100) - 24GB VRAM - External GPU
+  # ============================================================================
+  mineru-openai-server-7900xtx:
+    image: mineru:amd-rdna3
+    container_name: mineru-openai-server-7900xtx
     restart: always
-    profiles: ["openai-server"]
+    profiles: ["rdna3-7900xtx"]
     ports:
-      - 30000:30000
+      - 31001:30000
     environment:
       MINERU_MODEL_SOURCE: local
+      HSA_OVERRIDE_GFX_VERSION: "11.0.0"
+      PYTORCH_ROCM_ARCH: "gfx1100"
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+      HIP_VISIBLE_DEVICES: "0"  # External RX 7900 XTX
+      ROCM_HOME: "/opt/rocm"
+      GPU_MODEL: "RX7900XTX"
     entrypoint: mineru-openai-server
     command:
       --host 0.0.0.0
       --port 30000
-      # --data-parallel-size 2  # If using multiple GPUs, increase throughput using vllm's multi-GPU parallel mode
-      # --gpu-memory-utilization 0.5  # If running on a single GPU and encountering VRAM shortage, reduce the KV cache size by this parameter, if VRAM issues persist, try lowering it further to `0.4` or below.
+      --gpu-memory-utilization 0.85  # 24GB * 0.85 = 20.4GB usable
     ulimits:
       memlock: -1
       stack: 67108864
     ipc: host
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:30000/health || exit 1"]
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ["0"]  # Modify for multiple GPUs: ["0", "1"]
-              capabilities: [gpu]
 
-  mineru-api:
-    image: mineru:latest
-    container_name: mineru-api
+  mineru-api-7900xtx:
+    image: mineru:amd-rdna3
+    container_name: mineru-api-7900xtx
     restart: always
-    profiles: ["api"]
+    profiles: ["rdna3-7900xtx"]
     ports:
-      - 8000:8000
+      - 31002:8000
     environment:
       MINERU_MODEL_SOURCE: local
+      HSA_OVERRIDE_GFX_VERSION: "11.0.0"
+      PYTORCH_ROCM_ARCH: "gfx1100"
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+      HIP_VISIBLE_DEVICES: "0"
+      ROCM_HOME: "/opt/rocm"
+      GPU_MODEL: "RX7900XTX"
     entrypoint: mineru-api
     command:
       --host 0.0.0.0
       --port 8000
-      # parameters for vllm-engine
-      # --data-parallel-size 2  # If using multiple GPUs, increase throughput using vllm's multi-GPU parallel mode
-      # --gpu-memory-utilization 0.5  # If running on a single GPU and encountering VRAM shortage, reduce the KV cache size by this parameter, if VRAM issues persist, try lowering it further to `0.4` or below.
+      --gpu-memory-utilization 0.85
     ulimits:
       memlock: -1
       stack: 67108864
     ipc: host
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ["0"]  # Modify for multiple GPUs: ["0", "1"]
-              capabilities: [gpu]
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
 
-  mineru-gradio:
-    image: mineru:latest
-    container_name: mineru-gradio
+  mineru-gradio-7900xtx:
+    image: mineru:amd-rdna3
+    container_name: mineru-gradio-7900xtx
     restart: always
-    profiles: ["gradio"]
+    profiles: ["rdna3-7900xtx"]
     ports:
-      - 7860:7860
+      - 31003:7860
     environment:
       MINERU_MODEL_SOURCE: local
+      HSA_OVERRIDE_GFX_VERSION: "11.0.0"
+      PYTORCH_ROCM_ARCH: "gfx1100"
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+      HIP_VISIBLE_DEVICES: "0"
+      ROCM_HOME: "/opt/rocm"
+      GPU_MODEL: "RX7900XTX"
     entrypoint: mineru-gradio
     command:
       --server-name 0.0.0.0
       --server-port 7860
-      # --enable-api false  # If you want to disable the API, set this to false
-      # --max-convert-pages 20  # If you want to limit the number of pages for conversion, set this to a specific number
-      # parameters for vllm-engine
-      # --data-parallel-size 2  # If using multiple GPUs, increase throughput using vllm's multi-GPU parallel mode
-      # --gpu-memory-utilization 0.5  # If running on a single GPU and encountering VRAM shortage, reduce the KV cache size by this parameter, if VRAM issues persist, try lowering it further to `0.4` or below.
+      --enable-vllm-engine true
+      --gpu-memory-utilization 0.85
     ulimits:
       memlock: -1
       stack: 67108864
     ipc: host
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ["0"]  # Modify for multiple GPUs: ["0", "1"]
-              capabilities: [gpu]
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+
+  # ============================================================================
+  # RX 7600 XT (RDNA 2.0 / gfx1031) - 16GB VRAM
+  # ============================================================================
+  mineru-openai-server-7600xt:
+    image: mineru:amd-rdna2
+    container_name: mineru-openai-server-7600xt
+    restart: always
+    profiles: ["rdna2-7600xt"]
+    ports:
+      - 31001:30000
+    environment:
+      MINERU_MODEL_SOURCE: local
+      HSA_OVERRIDE_GFX_VERSION: "11.0.2"
+      PYTORCH_ROCM_ARCH: "gfx1102"
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+      HIP_VISIBLE_DEVICES: "0"
+      ROCM_HOME: "/opt/rocm"
+      GPU_MODEL: "RX7600XT"
+    entrypoint: mineru-openai-server
+    command:
+      --host 0.0.0.0
+      --port 30000
+      --gpu-memory-utilization 0.75  # 16GB * 0.75 = 12GB usable (conservative)
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    ipc: host
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:30000/health || exit 1"]
+
+  mineru-api-7600xt:
+    image: mineru:amd-rdna2
+    container_name: mineru-api-7600xt
+    restart: always
+    profiles: ["rdna2-7600xt"]
+    ports:
+      - 31002:8000
+    environment:
+      MINERU_MODEL_SOURCE: local
+      HSA_OVERRIDE_GFX_VERSION: "11.0.2"
+      PYTORCH_ROCM_ARCH: "gfx1102"
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+      HIP_VISIBLE_DEVICES: "0"
+      ROCM_HOME: "/opt/rocm"
+      GPU_MODEL: "RX7600XT"
+    entrypoint: mineru-api
+    command:
+      --host 0.0.0.0
+      --port 8000
+      --gpu-memory-utilization 0.75
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    ipc: host
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+
+  mineru-gradio-7600xt:
+    image: mineru:amd-rdna2
+    container_name: mineru-gradio-7600xt
+    restart: always
+    profiles: ["rdna2-7600xt"]
+    ports:
+      - 31003:7860
+    environment:
+      MINERU_MODEL_SOURCE: local
+      HSA_OVERRIDE_GFX_VERSION: "11.0.2"
+      PYTORCH_ROCM_ARCH: "gfx1102"
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+      HIP_VISIBLE_DEVICES: "0"
+      ROCM_HOME: "/opt/rocm"
+      GPU_MODEL: "RX7600XT"
+    entrypoint: mineru-gradio
+    command:
+      --server-name 0.0.0.0
+      --server-port 7860
+      --enable-vllm-engine true
+      --gpu-memory-utilization 0.75
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    ipc: host
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+
+  # ============================================================================
+  # Radeon 8060S (Integrated) + NPU M890 (Ryzen 9 HX370)
+  # NOTE: NPU support is EXPERIMENTAL - vLLM/MinerU may not fully support NPU
+  # ============================================================================
+  mineru-gradio-npu:
+    image: mineru:amd-npu
+    container_name: mineru-gradio-npu
+    restart: always
+    profiles: ["npu-m890"]
+    ports:
+      - 31003:7860
+    environment:
+      MINERU_MODEL_SOURCE: local
+      HSA_OVERRIDE_GFX_VERSION: "11.0.0"  # For integrated 8060S GPU
+      PYTORCH_ROCM_ARCH: "gfx1100"
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+      HIP_VISIBLE_DEVICES: "0"  # Integrated GPU
+      ROCM_HOME: "/opt/rocm"
+      GPU_MODEL: "Radeon8060S"
+      NPU_ENABLED: "experimental"
+    entrypoint: mineru-gradio
+    command:
+      --server-name 0.0.0.0
+      --server-port 7860
+      --enable-vllm-engine false  # Disable vLLM for NPU, may not be compatible
+      --gpu-memory-utilization 0.6  # Conservative for shared memory
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    ipc: host
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
