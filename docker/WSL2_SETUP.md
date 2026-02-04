@@ -5,7 +5,7 @@
 **Your Windows Setup:**
 - Windows 11/10 with WSL2
 - WSL2 Distribution: Ubuntu 22.04
-- Windows ROCm HIP SDK: 7.1.1 (MAX AI 395) / 6.4.2 (HX370)
+- Windows ROCm HIP SDK: 7.1.1 (MAX AI 395)
 
 **What You Need:**
 - ✅ WSL2 with Ubuntu 22.04 (you have this)
@@ -66,7 +66,6 @@ newgrp render
 # Should show your GPUs:
 # - RX 7900 XTX: gfx1100
 # - RX 7600 XT: gfx1102
-# - Radeon 8060S: gfx1100
 
 # Check with rocm-smi
 /opt/rocm/bin/rocm-smi
@@ -159,11 +158,6 @@ docker build -f amd-rocm.Dockerfile -t mineru:amd-rdna3 .
 docker build -f amd-rdna2.Dockerfile -t mineru:amd-rdna2 .
 ```
 
-#### For Ryzen NPU M890 (experimental):
-```bash
-docker build -f amd-npu.Dockerfile -t mineru:amd-npu .
-```
-
 ### Step 9: Run MinerU Services
 
 Navigate to docker folder:
@@ -179,11 +173,6 @@ docker compose --profile rdna3-7900xtx up -d
 #### For RX 7600 XT:
 ```bash
 docker compose --profile rdna2-7600xt up -d
-```
-
-#### For NPU/8060S (not recommended):
-```bash
-docker compose --profile npu-m890 up -d
 ```
 
 ### Step 10: Access from Windows
@@ -297,7 +286,7 @@ MinerU (PyTorch + vLLM)
 
 ### 🟢 ROCm Versions
 
-- **Windows**: ROCm HIP SDK 7.1.1 (MAX AI 395) or 6.4.2 (HX370)
+- **Windows**: ROCm HIP SDK 7.1.1 (MAX AI 395)
 - **WSL2**: Should install ROCm 6.2.4 (matches Docker base image)
 - **Docker**: Uses ROCm 6.2.4 from base image
 
@@ -314,9 +303,6 @@ Version mismatch is usually fine, but stay close to avoid driver issues.
 ### RX 7600 XT via WSL2
 - Expected: ~2.0-2.5s/iteration (estimate)
 - Not yet tested
-
-### Radeon 8060S via WSL2
-- Very slow, not recommended
 
 ## Next Steps
 

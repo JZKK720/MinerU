@@ -35,21 +35,13 @@ After completing WSL2 setup, return here for MinerU-specific configuration.
 - **Expected Performance**: Lower than 7900 XTX due to less VRAM
 - **Use Case**: Budget-friendly alternative for smaller documents
 
-### Configuration 3: Ryzen 9 HX370 with NPU M890 (⚠️ EXPERIMENTAL)
-- **CPU**: AMD Ryzen 9 HX370
-- **Integrated GPU**: AMD Radeon 8060S (RDNA 3.0-based / gfx1100)
-- **NPU**: AMD XDNA M890 NPU
-- **ROCm HIP SDK**: 6.4.2 for Windows (older than MAX AI 395)
-- **Note**: vLLM/MinerU NPU support is **NOT GUARANTEED**. This config uses the integrated GPU only.
-- **Performance**: Significantly lower than dedicated GPUs, vLLM engine disabled
-
 ## Hardware Configuration
 
 ## Critical Configuration Changes
 
-### 1. Docker Compose Configuration (`compose.yaml`)
+### 1. Docker Compose Configuration (`docker-compose.yaml`)
 
-The compose file now supports **THREE GPU PROFILES**:
+The compose file now supports **TWO GPU PROFILES**:
 
 #### Profile 1: RX 7900 XTX (RDNA 3.0) - **RECOMMENDED**
 ```bash
@@ -89,26 +81,6 @@ environment:
 
 **GPU Memory**: 16GB, utilization set to 75% (~12GB usable, conservative)
 
-#### Profile 3: Ryzen NPU M890 + 8060S (⚠️ EXPERIMENTAL)
-```bash
-docker compose --profile npu-m890 up -d
-```
-
-**Environment Variables:**
-```yaml
-environment:
-  MINERU_MODEL_SOURCE: local
-  HSA_OVERRIDE_GFX_VERSION: "11.0.0"      # For integrated 8060S
-  PYTORCH_ROCM_ARCH: "gfx1100"
-  TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
-  HIP_VISIBLE_DEVICES: "0"                # Integrated GPU
-  ROCM_HOME: "/opt/rocm"
-  GPU_MODEL: "Radeon8060S"
-  NPU_ENABLED: "experimental"
-```
-
-**Memory**: Shared system memory, utilization 60%, **vLLM engine DISABLED**
-
 #### AMD ROCm Environment Variables
 ```yaml
 environment:
@@ -147,7 +119,7 @@ deploy:
 
 ### 3. AMD ROCm Dockerfiles Created
 
-**Three Dockerfiles for different GPU architectures:**
+**Two Dockerfiles for different GPU architectures:**
 
 #### A. RDNA 3.0 (RX 7900 XTX) - `docker/china/amd-rocm.Dockerfile`
 - Base: `rocm/pytorch:rocm6.2.4_ubuntu22.04_py3.10_pytorch_release_2.5.0`
@@ -166,14 +138,6 @@ deploy:
 - PyTorch: 2.9.0+rocmsdk20251116
 - vLLM: Enabled (may need tuning)
 - Memory utilization: 75% (conservative)
-
-#### C. NPU M890 + 8060S - `docker/china/amd-npu.Dockerfile`
-- Base: Same as above
-- Architecture: gfx1100 (integrated GPU)
-- Host ROCm: HIP SDK 6.4.2 (Ryzen 9 HX370)
-- Memory: Shared system RAM
-- vLLM: **DISABLED** (not NPU-compatible)
-- Status: ⚠️ EXPERIMENTAL
 
 **Location**: `docker/china/amd-rocm.Dockerfile`
 
@@ -285,12 +249,6 @@ cd docker/china
 docker build -f amd-rdna2.Dockerfile -t mineru:amd-rdna2 .
 ```
 
-#### Ryzen NPU M890 + 8060S (Experimental)
-```bash
-cd docker/china
-docker build -f amd-npu.Dockerfile -t mineru:amd-npu .
-```
-
 ### Run Services
 
 #### Option 1: RX 7900 XTX (Best Performance)
@@ -308,13 +266,7 @@ docker compose --profile rdna2-7600xt up -d
 docker logs -f mineru-gradio-7600xt
 ```
 
-#### Option 3: Ryzen NPU (Experimental, Low Performance)
-```bash
-docker compose --profile npu-m890 up -d
-docker logs -f mineru-gradio-npu
-```
-
-### Update compose.yaml to use AMD image
+### Update docker-compose.yaml to use AMD image
 Edit `docker/compose.yaml` and change:
 ```yaml
 image: mineru:amd-rocm  # Change from mineru:latest
@@ -351,12 +303,6 @@ docker compose --profile openai-server up -d
 - **Architecture Note**: Despite RDNA 2.0 marketing, uses gfx1102
 - **Status**: ⚠️ Requires testing, same patches should work
 
-### Ryzen NPU M890 + Radeon 8060S (Integrated)
-- **Performance**: Significantly lower (CPU-like speeds)
-- **vLLM**: Disabled (not compatible)
-- **Use Case**: Testing only, not recommended for production
-- **Status**: ⚠️ EXPERIMENTAL - NPU not utilized by MinerU
-
 ### Access URLs
 - **Gradio UI**: http://localhost:31003
 - **API Server**: http://localhost:31002
@@ -372,7 +318,6 @@ rocm-smi
 # In container
 docker exec -it mineru-gradio-7900xtx rocm-smi  # For 7900 XTX
 docker exec -it mineru-gradio-7600xt rocm-smi   # For 7600 XT
-docker exec -it mineru-gradio-npu rocm-smi      # For NPU/8060S
 ```
 
 ### Verify GPU Architecture
@@ -380,7 +325,6 @@ docker exec -it mineru-gradio-npu rocm-smi      # For NPU/8060S
 rocminfo | grep gfx
 # RX 7900 XTX should show: gfx1100
 # RX 7600 XT should show: gfx1102
-# Radeon 8060S should show: gfx1100
 ```
 
 ### GPU Selection Issues
@@ -391,11 +335,11 @@ If you have multiple GPUs, ensure the correct one is selected:
 rocm-smi --showproductname
 
 # Set specific GPU for RX 7900 XTX (usually device 0 for external)
-# Already configured in compose.yaml as HIP_VISIBLE_DEVICES: "0"
+# Already configured in docker-compose.yaml as HIP_VISIBLE_DEVICES: "0"
 
 # If 7900 XTX is not device 0, check with:
 rocm-smi --showid
-# Then update HIP_VISIBLE_DEVICES in compose.yaml accordingly
+# Then update HIP_VISIBLE_DEVICES in docker-compose.yaml accordingly
 ```
 
 ### Check ROCm GPU Access
@@ -430,29 +374,21 @@ Expected speeds for RX 7900 XTX:
 2. **"VRAM out of memory"**
    - **RX 7900 XTX (24GB)**: Lower `--gpu-memory-utilization` from 0.85 to 0.75
    - **RX 7600 XT (16GB)**: Lower from 0.75 to 0.6 or 0.5
-   - **Radeon 8060S (Integrated)**: Lower from 0.6 to 0.4
    - Reduce batch sizes or process smaller documents
 
 3. **Slow inference (>5s/it)**
    - Triton patches not applied correctly
    - Check vLLM installation path
    - Rebuild container after applying patches
-   - Verify correct GPU architecture (gfx1100 vs gfx1031)
+   - Verify correct GPU architecture (gfx1100 vs gfx1102)
 
 4. **LoRA tokenizer error**
    - Apply mineru_vl_utils patch from Step 2
 
-5. **NPU not detected / not utilized**
-   - **Expected behavior**: MinerU doesn't support NPU directly
-   - NPU config uses integrated GPU (8060S) only
-   - True NPU support requires framework modifications
-   - Consider using RX 7900 XTX or 7600 XT instead
-
-6. **Wrong GPU being used (multi-GPU systems)**
+5. **Wrong GPU being used (multi-GPU systems)**
    - Check `rocm-smi --showid`
-   - Update `HIP_VISIBLE_DEVICES` in compose.yaml
+   - Update `HIP_VISIBLE_DEVICES` in docker-compose.yaml
    - External RX 7900 XTX is typically device 0
-   - Integrated 8060S may be device 1
 
 ### Common Issues
 
@@ -481,7 +417,6 @@ Expected speeds for RX 7900 XTX:
 |-----------|-------------|------|--------------|----------------|--------|
 | **RX 7900 XTX** | RDNA 3.0 (gfx1100) | 24GB | ✅ Full | ~1.3s/it | ✅ Tested |
 | **RX 7600 XT** | Navi 33 (gfx1102) | 16GB | ⚠️ Likely | ~1.8-2.5s/it | ⚠️ Untested |
-| **Radeon 8060S** | RDNA 3.0 (gfx1100) | Shared | ❌ Disabled | >5s/it | ⚠️ Experimental |
 
 ### RX 7900 XTX Optimization (from AMD.md testing)
 
@@ -522,14 +457,6 @@ Expected speeds for RX 7900 XTX:
 4. ⚠️  **TODO**: Build image: `docker build -f docker/china/amd-rdna2.Dockerfile -t mineru:amd-rdna2 docker/china/`
 5. ⚠️  **TODO**: Run: `docker compose --profile rdna2-7600xt up -d`
 6. ⚠️  **TODO**: Test and adjust memory utilization
-
-**For Ryzen NPU M890 (Experimental):**
-1. ✅ Docker compose configured
-2. ✅ Dockerfile created (GPU-only, no true NPU support)
-3. ⚠️  **NOTE**: This uses integrated GPU only, performance will be poor
-4. ⚠️  **TODO**: Build image: `docker build -f docker/china/amd-npu.Dockerfile -t mineru:amd-npu docker/china/`
-5. ⚠️  **TODO**: Run: `docker compose --profile npu-m890 up -d`
-6. ❌  **NOT RECOMMENDED** for production use
 
 ## Next Steps
 

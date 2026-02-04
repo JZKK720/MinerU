@@ -20,15 +20,6 @@ docker compose --profile rdna2-7600xt up -d
 - **Expected Speed**: ~1.8-2.5s/iteration (estimate)
 - **Status**: Requires testing
 
-### Option 3: Ryzen NPU M890 + 8060S - ⚠️ NOT RECOMMENDED
-```bash
-docker compose --profile npu-m890 up -d
-```
-- **Architecture**: Integrated GPU (gfx1100)
-- **Memory**: Shared system RAM
-- **Expected Speed**: Very slow (>5s/iteration)
-- **Status**: Experimental, vLLM disabled
-
 ## Build Commands
 
 ```bash
@@ -39,9 +30,6 @@ docker build -f amd-rocm.Dockerfile -t mineru:amd-rdna3 .
 
 # Build for RX 7600 XT
 docker build -f amd-rdna2.Dockerfile -t mineru:amd-rdna2 .
-
-# Build for NPU (not recommended)
-docker build -f amd-npu.Dockerfile -t mineru:amd-npu .
 ```
 
 ## Access URLs (All Configurations)
@@ -55,13 +43,11 @@ docker build -f amd-npu.Dockerfile -t mineru:amd-npu .
 |-----|-------------|-------------|--------------|---------------|
 | RX 7900 XTX | RDNA 3.0 | gfx1100 | 11.0.0 | 7.1.1 (MAX AI 395) |
 | RX 7600 XT | Navi 33 | gfx1102 | 11.0.2 | 7.1.1 (MAX AI 395) |
-| Radeon 8060S | RDNA 3.0 (integrated) | gfx1100 | 11.0.0 | 6.4.2 (HX370) |
 
 | GPU | Total VRAM | Recommended % | Usable Memory |
 |-----|-----------|---------------|---------------|
 | RX 7900 XTX | 24GB | 85% | ~20.4GB |
 | RX 7600 XT | 16GB | 75% | ~12GB |
-| Radeon 8060S | Shared | 60% | Variable |
 
 ## Important Notes
 
@@ -85,4 +71,3 @@ docker build -f amd-npu.Dockerfile -t mineru:amd-npu .
 - ✅ Best performance (~1.3s/iteration)
 
 The RX 7600 XT is a budget alternative but untested.
-The NPU/8060S option is **not recommended** for actual use.
